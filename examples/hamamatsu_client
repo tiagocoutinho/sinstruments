@@ -1,0 +1,74 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+# This file is part of the instrument simulator project
+#
+# Copyright (c) 2018 Tiago Coutinho
+# Distributed under the MIT. See LICENSE for more info.
+
+"""Hamamatsu RemoteEx client console. For demonstration purposes only"""
+
+import cmd
+import socket
+
+
+class Console(cmd.Cmd):
+
+    ready = b'RemoteEx Ready\r'
+    prompt = 'cam> '
+
+    def __init__(self, conn):
+        self._conn = conn
+        cmd.Cmd.__init__(self)
+
+    def _readline(self):
+        r = []
+        while True:
+            c = self._conn.recv(1)
+            r.append(c)
+            if c == '\r': break
+        return ''.join(r)
+
+    def preloop(self):
+        reply = self._readline()
+        if reply != self.ready:
+            raise RuntimeError('connection failed: expected {!r} ' \
+                               'but got {!r}'.format(self.ready, reply))
+
+        self.stdout.write('Successfully connected to {}\n' \
+                          .format(self._conn.getpeername()))
+
+    def precmd(self, line):
+        if not line or line[0] in ('!', '?'):
+            return line
+        return 'execute ' + line
+
+    def do_execute(self, line):
+        request = line.encode() + b'\r'
+        self._conn.sendall(request)
+        print(self._readline())
+
+
+def main(args=None):
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("host", help="host name (ex: hamatsu1)")
+    parser.add_argument("-p", "--port", help="port number (default %(default)d)",
+                        type=int, default=1001)
+    args = parser.parse_args(args=args)
+    conn = None
+    try:
+        conn = socket.create_connection((args.host, args.port))
+        console = Console(conn)
+        console.cmdloop()
+    except KeyboardInterrupt:
+        print('\nCtrl-C pressed. Bailing out...')
+    except Exception as err:
+        print('error: {}\n'.format(err))
+    finally:
+        if conn:
+            conn.close()
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,15 @@
+# Hamamatsu Streak camera simulator
+name: hamamatsu_sim
+devices:
+- class: RemoteEx
+  name: streak1
+  module: hamamatsu
+  transports:
+  - type: tcp
+    url: :10001
+  # Following are optional. Just to give some startup values
+  application:
+    title: HiPic
+  camera:
+    setup:
+      TimingMode: external
