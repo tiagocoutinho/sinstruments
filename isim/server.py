@@ -326,6 +326,7 @@ def create_device_from_config(config):
     module_name = device_info.pop("module", class_name.lower())
     package_name = device_info.pop("package", None)
     name = device_info.pop("name", class_name)
+    transports_info = device_info.pop("transports", ())
 
     if package_name is None:
         package_name = "isim.simulators." + module_name
@@ -335,7 +336,6 @@ def create_device_from_config(config):
     klass = getattr(package, class_name)
     device = klass(name, **device_info)
 
-    transports_info = device_info.pop("transports", ())
     transports = []
     for interface_info in transports_info:
         ikwargs = dict(interface_info)
