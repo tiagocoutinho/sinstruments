@@ -41,6 +41,9 @@ import collections
 
 from isim.device import BaseDevice
 
+import gevent
+from gevent.server import StreamServer
+
 
 cmd_re = re.compile('(?P<name>\w+)\((?P<args>.*)\)')
 
@@ -345,7 +348,7 @@ class RemoteEx(BaseDevice):
     """
 
     DEFAULT_NEWLINE = b'\r'
-    
+
     def __init__(self, name, **opts):
         super(RemoteEx, self).__init__(name)
         self._app = parse_config_params(opts.get('application', {}), AppParamInfo)
@@ -360,10 +363,27 @@ class RemoteEx(BaseDevice):
         self._started = False
         self._acq_mode = None
         self._commands = cmds = {}
+        data_url = opts.get('data_url')
+        if data_url:
+            self._data_stream = StreamServer(data_url, self.handle_data_connection)
+            self._data_stream.start()
         for name in dir(self):
             cmd = getattr(self, name)
             if callable(cmd) and hasattr(cmd, 'command'):
                 cmds[cmd.command['name']] = cmd
+
+    def handle_data_connection(self, sock, addr):
+        info = self._log.info
+        info("new connection to data port from %s", addr)
+        i = 0
+        try:
+            while True:
+                gevent.sleep(1)
+                sock.sendall(b'binary data %d\n' %i)
+                i += 1
+        except:
+            pass
+        info("client disconnected from data port %s", addr)
 
     def on_connection(self, transport, conn):
         conn.sendall(b'RemoteEx Ready\r')

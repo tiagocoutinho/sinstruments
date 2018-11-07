@@ -7,6 +7,7 @@ devices:
   transports:
   - type: tcp
     url: :10001
+  data_url: 10002
   # Following are optional. Just to give some startup values
   application:
     title: HiPic
