@@ -14,6 +14,7 @@ To start the server you can do something like::
 
 from __future__ import print_function
 
+import io
 import os
 import pty
 import sys
@@ -21,9 +22,10 @@ import logging
 import weakref
 
 import gevent
+from gevent.select import select
 from gevent.server import StreamServer
 from gevent.fileobject import FileObject
-from gevent.baseserver import BaseServer
+
 
 _log = logging.getLogger("simulator")
 
@@ -37,6 +39,46 @@ __all__ = [
 ]
 
 
+def readlines(fobj, newline='\n', special_messages=None):
+    if newline == "\n" and not special_messages:
+        for line in fobj:
+            yield line
+    else:
+        # warning: in this mode read will block even if client
+        # disconnects. Need to find a better way to handle this
+        buff = ""
+        while True:
+            readout = fobj.read(1)
+            if not readout:
+                return
+            buff += readout
+            if buff in self.special_messages:
+                lines = (buff,)
+                buff = ""
+            else:
+                lines = buff.split(self.newline)
+                buff, lines = lines[-1], lines[:-1]
+            for line in lines:
+                if line:
+                    yield line
+
+
+def delay(self, nb_bytes, baudrate=None):
+    """
+    Simulate a delay simulating the transport of the given number of bytes,
+    correspoding to the baudrate defined in the configuration
+
+    Arguments:
+        nb_bytes (int): number of bytes to transport
+    """
+    # simulate baudrate
+    if not baudrate:
+        return
+    byterate = baudrate / 10.0
+    sleep_time = nb_bytes / byterate
+    gevent.sleep(sleep_time)
+
+
 class SimulatorServerMixin(object):
     """
     Mixin class for TCP/Serial servers to handle line based commands.
@@ -48,7 +90,6 @@ class SimulatorServerMixin(object):
         self.baudrate = baudrate
         self.newline = device.newline if newline is None else newline
         self.special_messages = set(device.special_messages)
-        self.connections = {}
         name = "{}[{}]".format(device.name, self.address)
         self._log = logging.getLogger("{0}.{1}".format(_log.name, name))
         self._log.info(
@@ -58,93 +99,40 @@ class SimulatorServerMixin(object):
             self.baudrate,
         )
 
-    def handle(self, sock, addr):
-        file_obj = sock.makefile(mode="rb")
-        self.connections[addr] = file_obj, sock
-        try:
-            return self.__handle(sock, file_obj)
-        finally:
-            file_obj.close()
-            del self.connections[addr]
-
-    def __handle(self, sock, file_obj):
+    def handle(self, fobj):
         """
         Handle new connection and requests
 
         Arguments:
-            sock (gevent.socket.socket): new socket resulting from an accept
-            addr tuple): address (tuple of host, port)
         """
-        self.device.on_connection(self, sock)
-        if self.newline == "\n" and not self.special_messages:
-            for line in file_obj:
-                self.handle_line(sock, line)
-        else:
-            # warning: in this mode read will block even if client
-            # disconnects. Need to find a better way to handle this
-            buff = ""
-            finish = False
-            while not finish:
-                readout = file_obj.read(1)
-                if not readout:
-                    return
-                buff += readout
-                if buff in self.special_messages:
-                    lines = (buff,)
-                    buff = ""
-                else:
-                    lines = buff.split(self.newline)
-                    buff, lines = lines[-1], lines[:-1]
-                for line in lines:
-                    if not line:
-                        return
-                    self.handle_line(sock, line)
+        try:
+            for line in readlines(fobj, self.newline, self.special_messages):
+                self.handle_line(fobj, line)
+        except Exception as err:
+            self._log.info('error handling requests: %r', err)
 
-    def handle_line(self, sock, line):
+    def handle_line(self, fobj, line):
         """
         Handle a single command line. Simulates a delay if baudrate is defined
         in the configuration.
 
         Arguments:
-            sock (gevent.socket.socket): new socket resulting from an accept
-            addr (tuple): address (tuple of host, port)
             line (str): line to be processed
 
         Returns:
             str: response to give to client or None if no response
         """
-        self.pause(len(line))
+        delay(len(line), self.baudrate)
         response = self.device.handle_line(line)
         if response is not None:
-            self.pause(len(response))
-            sock.sendall(response)
-
-        return response
-
-    def pause(self, nb_bytes):
-        """
-        Simulate a delay simulating the transport of the given number of bytes,
-        correspoding to the baudrate defined in the configuration
-
-        Arguments:
-            nb_bytes (int): number of bytes to transport
-        """
-        # simulate baudrate
-        if not self.baudrate:
-            return
-        byterate = self.baudrate / 10.0
-        sleep_time = nb_bytes / byterate
-        gevent.sleep(sleep_time)
+            delay(len(response), self.baudrate)
+            self.send(fobj, response)
 
     def broadcast(self, msg):
-        for _, (_, sock) in self.connections.items():
-            try:
-                sock.sendall(msg)
-            except:
-                self._log.exception("error in broadcast")
+        raise NotImplementedError
 
 
-class SerialServer(BaseServer, SimulatorServerMixin):
+class SerialServer(SimulatorServerMixin):
     """
     Serial line emulation server. It uses :func:`pty.opentpy` to open a
     pseudo-terminal simulating a serial line.
@@ -153,41 +141,30 @@ class SerialServer(BaseServer, SimulatorServerMixin):
     def __init__(self, *args, **kwargs):
         device = kwargs.pop("device")
         self.link_name = kwargs.pop("url")
-        e_kwargs = dict(
-            baudrate=kwargs.pop("baudrate", None), newline=kwargs.pop("newline", None)
-        )
-        BaseServer.__init__(self, None, *args, **kwargs)
-        SimulatorServerMixin.__init__(self, device, **e_kwargs)
+        self.set_listener(kwargs.pop('listener', None))
+        SimulatorServerMixin.__init__(self, device, **kwargs)
 
-    def __del__(self):
-        try:
-            print("Removing pseudo terminal link : %s" % self.link_name)
-            os.remove(self.link_name)
-        except:
-            print("pseudo terminal link no more present ?")
+    def stop(self):
+        self.close()
 
-    def terminate(self):
-        try:
-            print(
-                "terminate of SerialServer : Removing pseudo terminal link : %s"
-                % self.link_name
-            )
+    def close(self):
+        if os.path.islink(self.link_name):
             os.remove(self.link_name)
-        except:
-            print("pseudo terminal link no more present ?")
+        if self.master:
+            os.close(self.master)
+            self.master = None
+        if self.slave:
+            os.close(self.slave)
+            self.slave = None
 
     def set_listener(self, listener):
-        """
-        Override of :meth:`~gevent.baseserver.BaseServer.set_listener` to
-        initialize a pty and properly fill the address
-        """
         if listener is None:
             self.master, self.slave = pty.openpty()
         else:
             self.master, self.slave = listener
 
         self.address = os.ttyname(self.slave)
-        self.fileobj = FileObject(self.master, mode="rb")
+        self.fileobj = FileObject(self.master, mode='rb')
 
         # Make a link to the randomly named pseudo-terminal with a known name.
         link_path, link_fname = os.path.split(self.link_name)
@@ -201,25 +178,14 @@ class SerialServer(BaseServer, SimulatorServerMixin):
         _log.info('Created symbolic link "%s" to simulator pseudo ' \
                   'terminal "%s" ', self.link_name, self.address)
 
-    @property
-    def socket(self):
-        """
-        Override of :meth:`~gevent.baseserver.BaseServer.socket` to return a
-        socket object for the pseudo-terminal file object
-        """
-        return self.fileobj._sock
+    def serve_forever(self):
+        self.handle(self.fileobj)
 
-    def _do_read(self):
-        # override _do_read to properly handle pty
-        try:
-            self.do_handle(self.socket, self.address)
-        except:
-            self.loop.handle_error(([self.address], self), *sys.exc_info())
-            if self.delay >= 0:
-                self.stop_accepting()
-                self._timer = self.loop.timer(self.delay)
-                self._timer.start(self._start_accepting_if_started)
-                self.delay = min(self.max_delay, self.delay * 2)
+    def broadcast(self, msg):
+        self.fileobj.write(msg)
+
+    def send(self, fobj, data):
+        os.write(fobj.fileno(), data)
 
 
 class TCPServer(StreamServer, SimulatorServerMixin):
@@ -228,12 +194,14 @@ class TCPServer(StreamServer, SimulatorServerMixin):
     """
 
     def __init__(self, *args, **kwargs):
+        self.connections = {}
         listener = kwargs.pop("url")
         if isinstance(listener, list):
             listener = tuple(listener)
         device = kwargs.pop("device")
         e_kwargs = dict(
-            baudrate=kwargs.pop("baudrate", None), newline=kwargs.pop("newline", None)
+            baudrate=kwargs.pop("baudrate", None),
+            newline=kwargs.pop("newline", None)
         )
         StreamServer.__init__(self, listener, *args, **kwargs)
         SimulatorServerMixin.__init__(self, device, **e_kwargs)
@@ -241,8 +209,26 @@ class TCPServer(StreamServer, SimulatorServerMixin):
     def handle(self, sock, addr):
         info = self._log.info
         info("new connection from %s", addr)
-        SimulatorServerMixin.handle(self, sock, addr)
+        fobj = sock.makefile(mode="rwb")
+        self.connections[addr] = sock
+        self.device.on_connection(self, sock)
+        try:
+            SimulatorServerMixin.handle(self, fobj)
+        finally:
+            del self.connections[addr]
+            sock.close()
         info("client disconnected %s", addr)
+
+    def broadcast(self, msg):
+        for _, sock in self.connections.items():
+            try:
+                sock.sendall(msg)
+            except:
+                self._log.exception("error in broadcast")
+
+    def send(self, fobj, data):
+        fobj.write(data)
+        fobj.flush()
 
 
 class BaseDevice(object):
@@ -336,10 +322,10 @@ class Server(object):
                 )
                 self._log.debug("details: %s", error, exc_info=1)
 
-    def terminate(self):
+    def stop(self):
         for device in self.devices:
             for tp in device.transports:
-                tp.terminate()
+                tp.stop()
 
     def create_device(self, device_info):
         klass_name = device_info.get("class")
@@ -355,9 +341,11 @@ class Server(object):
                 return device
 
     def start(self):
+        tasks = []
         for device in self.devices:
             for interface in self.devices[device]:
-                interface.start()
+                tasks.append(gevent.spawn(interface.serve_forever))
+        return tasks
 
     def stop(self):
         for device in self.devices:
@@ -365,13 +353,9 @@ class Server(object):
                 interface.stop()
 
     def serve_forever(self):
-        stop_events = []
-        for device in self.devices:
-            for interface in self.devices[device]:
-                stop_events.append(interface._stop_event)
-        self.start()
+        tasks = self.start()
         try:
-            gevent.joinall(stop_events)
+            gevent.joinall(tasks)
         finally:
             self.stop()
 
@@ -454,11 +438,10 @@ def main():
     except KeyboardInterrupt:
         print("\nCtrl-C Pressed. Bailing out...")
         try:
-            server.terminate()
-            print("Server terminated... I'll be back.")
+            server.stop()
         except:
-            print("No terminate function for server or error in terminating.")
-
+            logging.exception("Error while stopping.")
+            return 1
 
 if __name__ == "__main__":
-    main()
+    exit(main())
