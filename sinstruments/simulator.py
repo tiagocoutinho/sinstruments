@@ -209,7 +209,7 @@ class TCPServer(StreamServer, SimulatorServerMixin):
     def handle(self, sock, addr):
         info = self._log.info
         info("new connection from %s", addr)
-        fobj = sock.makefile(mode="rwb")
+        fobj = sock.makefile('rwb', 0)
         self.connections[addr] = sock
         self.device.on_connection(self, sock)
         try:
@@ -228,7 +228,6 @@ class TCPServer(StreamServer, SimulatorServerMixin):
 
     def send(self, fobj, data):
         fobj.write(data)
-        fobj.flush()
 
 
 class BaseDevice(object):
