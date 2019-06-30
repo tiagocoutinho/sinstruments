@@ -24,7 +24,7 @@ MAX_AXIS = 128
 
 def iter_axis(start=1, stop=MAX_AXIS + 1, step=1):
     start, stop = max(start, 1), min(stop, MAX_AXIS + 1)
-    for i in xrange(start, stop, step):
+    for i in range(start, stop, step):
         if i % 10 > 8:
             continue
         yield i
@@ -435,13 +435,13 @@ class IcePAP(BaseDevice):
         self._log.debug("processing line %r", line)
         line = line.strip()
         responses = []
-        for cmd in line.split(";"):
+        for cmd in line.split(b";"):
             cmd = cmd.strip()
             response = self.handle_command(cmd)
             if response is not None:
-                responses.append(response + "\n")
+                responses.append(response.encode('ascii') + b"\n")
         if responses:
-            result = "".join(responses)
+            result = b"".join(responses)
             self._log.debug("answering with %r", result)
             return result
 
@@ -449,6 +449,7 @@ class IcePAP(BaseDevice):
         self._log.debug("processing command %r", cmd)
         if not cmd:
             return
+        cmd = cmd.decode()
         cmd_match = self._CMD.match(cmd)
         if cmd_match is None:
             self._log.info("unable to parse command")
