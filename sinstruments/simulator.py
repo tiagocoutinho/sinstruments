@@ -461,7 +461,7 @@ def main():
         print("\nCtrl-C Pressed. Bailing out...")
         try:
             server.stop()
-        except:
+        except Exception:
             logging.exception("Error while stopping.")
             return 1
 
