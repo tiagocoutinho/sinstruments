@@ -39,30 +39,6 @@ __all__ = [
 ]
 
 
-def readlines(fobj, newline='\n', special_messages=None):
-    if newline == "\n" and not special_messages:
-        for line in fobj:
-            yield line
-    else:
-        # warning: in this mode read will block even if client
-        # disconnects. Need to find a better way to handle this
-        buff = ""
-        while True:
-            readout = fobj.read(1)
-            if not readout:
-                return
-            buff += readout
-            if buff in self.special_messages:
-                lines = (buff,)
-                buff = ""
-            else:
-                lines = buff.split(self.newline)
-                buff, lines = lines[-1], lines[:-1]
-            for line in lines:
-                if line:
-                    yield line
-
-
 def delay(self, nb_bytes, baudrate=None):
     """
     Simulate a delay simulating the transport of the given number of bytes,
@@ -79,13 +55,83 @@ def delay(self, nb_bytes, baudrate=None):
     gevent.sleep(sleep_time)
 
 
+class BaseHandler:
+
+    def __init__(self, fobj, transport):
+        self.fobj = fobj
+        self.transport = transport
+
+    @property
+    def device(self):
+        return self.transport.device
+
+    @property
+    def baudrate(self):
+        return self.transport.baudrate
+
+
+class LineHandler(BaseHandler):
+
+    @property
+    def newline(self):
+        return self.transport.newline
+
+    @property
+    def special_messages(self):
+        return self.transport.special_messages
+
+    def readlines(self):
+        if self.newline == "\n" and not self.special_messages:
+            for line in self.fobj:
+                yield line
+        else:
+            # warning: in this mode read will block even if client
+            # disconnects. Need to find a better way to handle this
+            buff = ""
+            while True:
+                readout = self.fobj.read(1)
+                if not readout:
+                    return
+                buff += readout
+                if buff in self.special_messages:
+                    lines = (buff,)
+                    buff = ""
+                else:
+                    lines = buff.split(self.newline)
+                    buff, lines = lines[-1], lines[:-1]
+                for line in lines:
+                    if line:
+                        yield line
+
+    def handle(self):
+        for line in self.readlines():
+            self.handle_line(line)
+
+    def handle_line(self, line):
+        """
+        Handle a single command line. Simulates a delay if baudrate is defined
+        in the configuration.
+
+        Arguments:
+            line (str): line to be processed
+
+        Returns:
+            str: response to give to client or None if no response
+        """
+        delay(len(line), self.baudrate)
+        response = self.transport.device.handle_line(line)
+        if response is not None:
+            delay(len(response), self.baudrate)
+            self.transport.send(self.fobj, response)
+
+
 class SimulatorServerMixin(object):
     """
     Mixin class for TCP/Serial servers to handle line based commands.
     Internal usage only
     """
 
-    def __init__(self, device=None, newline=None, baudrate=None):
+    def __init__(self, device=None, newline=None, baudrate=None, handler=LineHandler):
         self.device = device
         self.baudrate = baudrate
         self.newline = device.newline if newline is None else newline
@@ -98,37 +144,19 @@ class SimulatorServerMixin(object):
             self.newline,
             self.baudrate,
         )
+        self.handler = handler
 
     def handle(self, fobj):
-        """
-        Handle new connection and requests
-
-        Arguments:
-        """
+        h = self.handler(fobj, self)
         try:
-            for line in readlines(fobj, self.newline, self.special_messages):
-                self.handle_line(fobj, line)
+            h.handle()
         except Exception as err:
             self._log.info('error handling requests: %r', err)
 
-    def handle_line(self, fobj, line):
-        """
-        Handle a single command line. Simulates a delay if baudrate is defined
-        in the configuration.
-
-        Arguments:
-            line (str): line to be processed
-
-        Returns:
-            str: response to give to client or None if no response
-        """
-        delay(len(line), self.baudrate)
-        response = self.device.handle_line(line)
-        if response is not None:
-            delay(len(response), self.baudrate)
-            self.send(fobj, response)
-
     def broadcast(self, msg):
+        raise NotImplementedError
+
+    def send(self, fobj, data):
         raise NotImplementedError
 
 
@@ -441,6 +469,7 @@ def main():
         except:
             logging.exception("Error while stopping.")
             return 1
+
 
 if __name__ == "__main__":
     exit(main())
