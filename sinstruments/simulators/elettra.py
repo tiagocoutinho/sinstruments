@@ -122,7 +122,7 @@ class ElettraElectrometer(BaseDevice):
             elif isinstance(allowed, (tuple, list, dict, set)):
                 if rvalue not in allowed:
                     raise ValueError(
-                        "set {0!r} not in allowed values".format(cmd, value)
+                        "set {0!r} not in allowed values".format(cmd)
                     )
         return rvalue
 

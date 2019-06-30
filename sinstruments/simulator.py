@@ -251,7 +251,7 @@ class TCPServer(StreamServer, SimulatorServerMixin):
         for _, sock in self.connections.items():
             try:
                 sock.sendall(msg)
-            except:
+            except Exception:
                 self._log.exception("error in broadcast")
 
     def send(self, fobj, data):
