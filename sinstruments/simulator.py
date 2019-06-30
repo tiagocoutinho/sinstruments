@@ -349,11 +349,6 @@ class Server(object):
                 )
                 self._log.debug("details: %s", error, exc_info=1)
 
-    def stop(self):
-        for device in self.devices:
-            for tp in device.transports:
-                tp.stop()
-
     def create_device(self, device_info):
         klass_name = device_info.get("class")
         name = device_info.get("name", klass_name)
@@ -376,8 +371,8 @@ class Server(object):
 
     def stop(self):
         for device in self.devices:
-            for interface in self.devices[device]:
-                interface.stop()
+            for transport in self.devices[device]:
+                transport.stop()
 
     def serve_forever(self):
         tasks = self.start()
