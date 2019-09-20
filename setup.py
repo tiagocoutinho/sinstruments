@@ -47,4 +47,9 @@ setup(
     url='https://github.com/tiagocoutinho/sinstruments',
     version='0.1.0',
     zip_safe=False,
+        entry_points={
+        'console_scripts': [
+            'sinstruments-server = sinstruments.simulator:main',
+        ]
+    },
 )
