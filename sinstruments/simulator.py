@@ -416,16 +416,19 @@ def create_device(device_info):
 
 
 def parse_config_file(file_name):
-    parsers = {
-        '.yml': 'yaml',
-        '.yaml': 'yaml',
-        '.json': 'json',
-        '.toml': 'toml',
-    }
     ext = os.path.splitext(file_name)[-1]
-    parser = __import__(parsers[ext])
-    with open(file_name, 'r') as config_file:
-        return parser.load(config_file)
+    if ext.endswith('toml'):
+        from toml import load
+    elif ext.endswith('yml') or ext.endswith('.yaml'):
+        import yaml
+        def load(fobj):
+            return yaml.load(fobj, Loader=yaml.Loader)
+    elif ext.endswith('json'):
+        from json import load
+    else:
+        raise NotImplementedError
+    with open(file_name)as fobj:
+        return load(fobj)
 
 
 def create_server_from_config(config):
