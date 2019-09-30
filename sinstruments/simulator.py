@@ -81,13 +81,13 @@ class LineHandler(BaseHandler):
         return self.transport.special_messages
 
     def readlines(self):
-        if self.newline == "\n" and not self.special_messages:
+        if self.newline == b'\n' and not self.special_messages:
             for line in self.fobj:
                 yield line
         else:
             # warning: in this mode read will block even if client
             # disconnects. Need to find a better way to handle this
-            buff = ""
+            buff = b''
             while True:
                 readout = self.fobj.read(1)
                 if not readout:
@@ -95,7 +95,7 @@ class LineHandler(BaseHandler):
                 buff += readout
                 if buff in self.special_messages:
                     lines = (buff,)
-                    buff = ""
+                    buff = b''
                 else:
                     lines = buff.split(self.newline)
                     buff, lines = lines[-1], lines[:-1]
