@@ -18,6 +18,7 @@ import io
 import os
 import pty
 import sys
+import inspect
 import logging
 import weakref
 
@@ -120,9 +121,13 @@ class LineHandler(BaseHandler):
         """
         delay(len(line), self.baudrate)
         response = self.transport.device.handle_line(line)
-        if response is not None:
-            delay(len(response), self.baudrate)
-            self.transport.send(self.fobj, response)
+        if response is None:
+            return
+        if not inspect.isgenerator(response) or isinstance(response, bytes):
+            response = response,
+        for packet in response:
+            delay(len(packet), self.baudrate)
+            self.transport.send(self.fobj, packet)
 
 
 class SimulatorServerMixin(object):
