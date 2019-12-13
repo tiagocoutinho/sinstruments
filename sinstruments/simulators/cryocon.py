@@ -131,7 +131,7 @@ class CryoCon(BaseDevice):
                     return 'A'
             elif 'TYPE' in cmd_line:
                 if query:
-                    return 'OFF'
+                    return 'MAN'
             elif 'OUTPWR' in cmd_line:
                 if query:
                     return '40.3'
