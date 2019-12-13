@@ -39,7 +39,7 @@ __all__ = [
 ]
 
 
-def delay(self, nb_bytes, baudrate=None):
+def delay(nb_bytes, baudrate=None):
     """
     Simulate a delay simulating the transport of the given number of bytes,
     correspoding to the baudrate defined in the configuration
