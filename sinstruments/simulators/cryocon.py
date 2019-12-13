@@ -48,14 +48,15 @@ import gevent
 
 from sinstruments.simulator import BaseDevice
 
+
 DEFAULT_CHANNEL = {
     'unit': 'K'
-
 }
 
 DEFAULT_LOOP = {
     'source': 'A',
     'type': 'MAN',
+    'outpwr': '40.3',
 }
 
 DEFAULT = {
@@ -67,17 +68,21 @@ DEFAULT = {
     'loops': [dict(DEFAULT_LOOP) for loop in range(2)]
 }
 
+
 class CryoCon(BaseDevice):
 
     MIN_TIME = 0.1
 
     def __init__(self, name, **opts):
+        kwargs = {}
+        if 'newline' in opts:
+            kwargs['newline'] = opts.pop('newline')
         self._config = dict(DEFAULT, **opts)
         self._config['channels'] = [dict(DEFAULT_CHANNEL, **channel)
                                     for channel in self._config['channels']]
         self._config['loops'] = [dict(DEFAULT_LOOP, **loop)
                                  for loop in self._config['loops']]
-        super().__init__(name, **opts)
+        super().__init__(name, **kwargs)
         self._last_request = 0
 
     def handle_line(self, line):
