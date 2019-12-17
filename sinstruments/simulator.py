@@ -87,15 +87,19 @@ class LineHandler(BaseHandler):
         else:
             # warning: in this mode read will block even if client
             # disconnects. Need to find a better way to handle this
-            buff = ""
+            buff = b""
             while True:
                 readout = self.fobj.read(1)
                 if not readout:
                     return
+                # logging.debug("Type readout before decode %r", type(readout))
+                # readout.decode('ascii')
+                # logging.debug("Type readout after decode %r", type(readout))
                 buff += readout
+                # logging.debug("Error surpassed %r", type(readout))
                 if buff in self.special_messages:
                     lines = (buff,)
-                    buff = ""
+                    buff = b""
                 else:
                     lines = buff.split(self.newline)
                     buff, lines = lines[-1], lines[:-1]

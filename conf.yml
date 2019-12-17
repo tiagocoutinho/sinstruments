@@ -1,0 +1,14 @@
+devices:
+- class: IcePAP
+  transports:
+  - type: tcp
+    url: 0:5000
+  axes:
+      - high_lim: 30000
+        low_lim: 0
+        power: True
+        addr: 1
+      - high_lim: 30000
+        low_lim: 0
+        power: ON
+        addr: 2
