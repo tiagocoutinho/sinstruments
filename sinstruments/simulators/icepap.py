@@ -357,7 +357,11 @@ class Axis(object):
         self._on_position = False
         self.in_movement(False)
         self.setStatus(DriverStopCode.NotStop.value, DriverStopCode.Offset.value)
-        self.setStatus(PowerOn.Off.value, PowerOn.Offset.value)
+
+        if opts["power"] == "ON" or "True":
+            self.setStatus(PowerOn.On.value, PowerOn.Offset.value)
+        else:
+            self.setStatus(PowerOn.Off.value, PowerOn.Offset.value)
 
         if getattr(self, "high_lim", None)() != "NO":
             self.setStatus(LimitPos.Active.value, LimitPos.Offset.value)
