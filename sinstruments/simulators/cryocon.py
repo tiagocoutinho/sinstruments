@@ -9,15 +9,17 @@
 .. code-block:: yaml
 
     devices:
-        - class: CryoCon
-          module: cryocon
-          transports:
-              - type: tcp
-                url: :5000
+    - class: CryoCon
+      module: cryocon
+      transports:
+      - type: tcp
+        url: :5000
 
 A simple *nc* client can be used to connect to the instrument:
 
     $ nc 0 5000
+    *IDN?
+    Cryo-con,24C,204683,1.01A
 
 Complex configuration with default values on simulator startup:
 
