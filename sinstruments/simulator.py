@@ -14,7 +14,6 @@ To start the server you can do something like::
 
 from __future__ import print_function
 
-import io
 import os
 import pty
 import sys
@@ -22,7 +21,6 @@ import logging
 import weakref
 
 import gevent
-from gevent.select import select
 from gevent.server import StreamServer
 from gevent.fileobject import FileObject
 
@@ -81,7 +79,8 @@ class LineHandler(BaseHandler):
         return self.transport.special_messages
 
     def readlines(self):
-        if self.newline == b'\n' and not self.special_messages:
+        nl = self.newline
+        if nl == b'\n' and not self.special_messages:
             for line in self.fobj:
                 yield line
         else:
@@ -97,7 +96,7 @@ class LineHandler(BaseHandler):
                     lines = (buff,)
                     buff = b''
                 else:
-                    lines = buff.split(self.newline)
+                    lines = buff.split(nl)
                     buff, lines = lines[-1], lines[:-1]
                 for line in lines:
                     if line:
@@ -264,7 +263,7 @@ class BaseDevice(object):
     device
     """
 
-    DEFAULT_NEWLINE = "\n"
+    DEFAULT_NEWLINE = b"\n"
 
     special_messages = set()
 
@@ -334,7 +333,6 @@ class Server(object):
             )
             self.backdoor.start()
             self._log.info("Backdoor opened at %r", backdoor)
-
         else:
             self._log.info("no backdoor declared")
 
