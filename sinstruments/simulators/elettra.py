@@ -140,7 +140,7 @@ class ElettraElectrometer(BaseDevice):
             raise ValueError("{0} is not writable".format(cmd))
         self.commands[cmd] = value
 
-    def handle_line(self, line):
+    def handle_message(self, line):
         self._log.debug("processing line %r", line)
         line = line.strip()
         if line.lower() == self.SHORT_GET:
@@ -237,6 +237,7 @@ class AH401D(ElettraElectrometer):
 class AH501D(ElettraElectrometer):
 
     # special messages are sent without '\r'
+    # TODO: NOT HANDLED BY SIMULATOR ANYMORE: NEED TO IMPLEMENT A SPECIFIC PROTOCOL
     special_messages = set(["S"])  # stop continuous acquisition
 
     COMMANDS = dict(

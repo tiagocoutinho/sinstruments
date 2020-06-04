@@ -389,8 +389,7 @@ class IcePAP(BaseDevice):
     )
 
     def __init__(self, name, axes=None, **opts):
-        super_kwargs = dict(newline=opts.pop("newline", self.DEFAULT_NEWLINE))
-        super(IcePAP, self).__init__(name, **super_kwargs)
+        super(IcePAP, self).__init__(name, **opts)
         axes_dict = {}
         for axis in axes or [dict(address=addr) for addr in iter_axis()]:
             axes_dict[axis["address"]] = Axis(self, **axis)
@@ -431,7 +430,7 @@ class IcePAP(BaseDevice):
             return err
         return self._axes[addr]
 
-    def handle_line(self, line):
+    def handle_message(self, line):
         self._log.debug("processing line %r", line)
         line = line.strip()
         responses = []

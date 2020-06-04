@@ -53,110 +53,110 @@ def delay(nb_bytes, baudrate=None):
     gevent.sleep(sleep_time)
 
 
-class BaseHandler:
+class BaseProtocol:
 
-    def __init__(self, fobj, transport):
-        self.fobj = fobj
+    def __init__(self, device, channel, transport):
+        self.device = device
+        self.channel = channel
         self.transport = transport
 
-    @property
-    def device(self):
-        return self.transport.device
-
-    @property
-    def baudrate(self):
-        return self.transport.baudrate
+    def handle(self):
+        raise NotImplementedError
 
 
-class LineHandler(BaseHandler):
+class MessageProtocol(BaseProtocol):
+
+    def handle(self):
+        for message in self.read_messages():
+            self.handle_message(message)
+
+    def handle_message(self, message):
+        """
+        Handle a single command.
+
+        Arguments:
+            message (str): message to be processed
+
+        Returns:
+            str: response to give to client or None if no response
+        """
+        response = self.device.handle_message(message)
+        if response is not None:
+            self.transport.send(self.channel, response)
+
+    def read_messages(self):
+        raise NotImplementedError
+
+
+class LineProtocol(MessageProtocol):
 
     @property
     def newline(self):
-        return self.transport.newline
+        return self.device.newline
 
-    @property
-    def special_messages(self):
-        return self.transport.special_messages
-
-    def readlines(self):
+    def read_messages(self):
+        transport = self.transport
         nl = self.newline
-        if nl == b'\n' and not self.special_messages:
-            for line in self.fobj:
+        if nl == b'\n':
+            for line in self.channel:
                 yield line
         else:
             # warning: in this mode read will block even if client
             # disconnects. Need to find a better way to handle this
             buff = b''
             while True:
-                readout = self.fobj.read(1)
+                readout = transport.read1(self.channel)
                 if not readout:
                     return
                 buff += readout
-                if buff in self.special_messages:
-                    lines = (buff,)
-                    buff = b''
-                else:
-                    lines = buff.split(nl)
-                    buff, lines = lines[-1], lines[:-1]
+                lines = buff.split(nl)
+                buff, lines = lines[-1], lines[:-1]
                 for line in lines:
                     if line:
                         yield line
 
-    def handle(self):
-        for line in self.readlines():
-            self.handle_line(line)
-
-    def handle_line(self, line):
-        """
-        Handle a single command line. Simulates a delay if baudrate is defined
-        in the configuration.
-
-        Arguments:
-            line (str): line to be processed
-
-        Returns:
-            str: response to give to client or None if no response
-        """
-        delay(len(line), self.baudrate)
-        response = self.transport.device.handle_line(line)
-        if response is not None:
-            delay(len(response), self.baudrate)
-            self.transport.send(self.fobj, response)
-
 
 class SimulatorServerMixin(object):
     """
-    Mixin class for TCP/Serial servers to handle line based commands.
+    Mixin class for TCP/Serial servers to handle message based commands.
     Internal usage only
     """
 
-    def __init__(self, device=None, newline=None, baudrate=None, handler=LineHandler):
-        self.device = device
-        self.baudrate = baudrate
-        self.newline = device.newline if newline is None else newline
-        self.special_messages = set(device.special_messages)
-        name = "{}[{}]".format(device.name, self.address)
+    def __init__(self, name, handler, **kwargs):
+        name = "{}[{}]".format(name, self.address)
+        self.baudrate = kwargs.get('baudrate', None)
         self._log = logging.getLogger("{0}.{1}".format(_log.name, name))
-        self._log.info(
-            "listening on %s (newline=%r) (baudrate=%s)",
-            self.address,
-            self.newline,
-            self.baudrate,
-        )
+        self._log.info("listening on %s (baud=%s)", self.address, self.baudrate)
         self.handler = handler
+        self.props = kwargs
 
-    def handle(self, fobj):
-        h = self.handler(fobj, self)
+    def handle(self, channel):
+        handler = self.handler(channel, self)
         try:
-            h.handle()
+            handler.handle()
         except Exception as err:
             self._log.info('error handling requests: %r', err)
 
     def broadcast(self, msg):
         raise NotImplementedError
 
-    def send(self, fobj, data):
+    def send(self, channel, data):
         raise NotImplementedError
+
+    def read(self, channel, size=-1):
+        data = channel.read(size=size)
+        delay(len(data), baudrate=self.baudrate)
+        return data
+
+    def read1(self, channel, size=-1):
+        data = channel.read1(size)
+        delay(len(data), baudrate=self.baudrate)
+        return data
+
+    def readline(self, channel):
+        data = channel.readline()
+        delay(len(data), baudrate=self.baudrate)
+        return data
 
 
 class SerialServer(SimulatorServerMixin):
@@ -165,18 +165,17 @@ class SerialServer(SimulatorServerMixin):
     pseudo-terminal simulating a serial line.
     """
 
-    def __init__(self, *args, **kwargs):
-        device = kwargs.pop("device")
-        self.link_name = kwargs.pop("url")
+    def __init__(self, name, handler, **kwargs):
+        self.address = kwargs.pop("url")
         self.set_listener(kwargs.pop('listener', None))
-        SimulatorServerMixin.__init__(self, device, **kwargs)
+        SimulatorServerMixin.__init__(self, name, handler, **kwargs)
 
     def stop(self):
         self.close()
 
     def close(self):
-        if os.path.islink(self.link_name):
-            os.remove(self.link_name)
+        if os.path.islink(self.address):
+            os.remove(self.address)
         if self.master:
             os.close(self.master)
             self.master = None
@@ -190,20 +189,22 @@ class SerialServer(SimulatorServerMixin):
         else:
             self.master, self.slave = listener
 
-        self.address = os.ttyname(self.slave)
+        self.original_address = os.ttyname(self.slave)
         self.fileobj = FileObject(self.master, mode='rb')
 
         # Make a link to the randomly named pseudo-terminal with a known name.
-        link_path, link_fname = os.path.split(self.link_name)
+        link_path, link_fname = os.path.split(self.address)
         try:
-            os.remove(self.link_name)
-        except:
+            os.remove(self.address)
+        except Exception:
             pass
         if not os.path.exists(link_path):
             os.makedirs(link_path)
-        os.symlink(self.address, self.link_name)
-        _log.info('Created symbolic link "%s" to simulator pseudo ' \
-                  'terminal "%s" ', self.link_name, self.address)
+        os.symlink(self.original_address, self.address)
+        _log.info(
+            'Created symbolic link "%s" to simulator pseudo terminal %r',
+            self.address, self.original_address
+        )
 
     def serve_forever(self):
         self.handle(self.fileobj)
@@ -211,8 +212,9 @@ class SerialServer(SimulatorServerMixin):
     def broadcast(self, msg):
         self.fileobj.write(msg)
 
-    def send(self, fobj, data):
-        os.write(fobj.fileno(), data)
+    def send(self, channel, data):
+        delay(len(data), baudrate=self.baudrate)
+        os.write(channel.fileno(), data)
 
 
 class TCPServer(StreamServer, SimulatorServerMixin):
@@ -220,27 +222,21 @@ class TCPServer(StreamServer, SimulatorServerMixin):
     TCP emulation server
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, name, handler, **kwargs):
         self.connections = {}
         listener = kwargs.pop("url")
         if isinstance(listener, list):
             listener = tuple(listener)
-        device = kwargs.pop("device")
-        e_kwargs = dict(
-            baudrate=kwargs.pop("baudrate", None),
-            newline=kwargs.pop("newline", None)
-        )
-        StreamServer.__init__(self, listener, *args, **kwargs)
-        SimulatorServerMixin.__init__(self, device, **e_kwargs)
+        StreamServer.__init__(self, listener)
+        SimulatorServerMixin.__init__(self, name, handler, **kwargs)
 
     def handle(self, sock, addr):
         info = self._log.info
         info("new connection from %s", addr)
-        fobj = sock.makefile('rwb', 0)
+        channel = sock.makefile('rwb', 0)
         self.connections[addr] = sock
-        self.device.on_connection(self, sock)
         try:
-            SimulatorServerMixin.handle(self, fobj)
+            SimulatorServerMixin.handle(self, channel)
         finally:
             del self.connections[addr]
             sock.close()
@@ -253,29 +249,29 @@ class TCPServer(StreamServer, SimulatorServerMixin):
             except Exception:
                 self._log.exception("error in broadcast")
 
-    def send(self, fobj, data):
-        fobj.write(data)
+    def send(self, channel, data):
+        channel.write(data)
 
 
 class BaseDevice(object):
     """
-    Base intrument class. Override to implement an Simulator for a specific
+    Base intrument class. Override to implement a simulator for a specific
     device
     """
 
-    DEFAULT_NEWLINE = b"\n"
+    protocol = LineProtocol
+    newline = b"\n"
+    baudrate = None
 
-    special_messages = set()
-
-    def __init__(self, name, newline=None, **kwargs):
+    def __init__(self, name, **kwargs):
         self.name = name
-        self.newline = self.DEFAULT_NEWLINE if newline is None else newline
+        self.newline = kwargs.pop('newline', self.newline)
         self._log = logging.getLogger("{0}.{1}".format(_log.name, name))
         self.__transports = weakref.WeakKeyDictionary()
-        if kwargs:
-            self._log.warning(
-                "constructor keyword args ignored: %s", ", ".join(kwargs.keys())
-            )
+        self.props = kwargs
+
+    def get_protocol(self, channel, transport):
+        return self.protocol(self, channel, transport)
 
     @property
     def transports(self):
@@ -291,7 +287,7 @@ class BaseDevice(object):
     def on_connection(self, transport, conn):
         pass
 
-    def handle_line(self, line):
+    def handle_message(self, message):
         """
         To be implemented by the device.
 
@@ -402,13 +398,13 @@ def create_device(device_info):
     transports = []
     for interface_info in transports_info:
         ikwargs = dict(interface_info)
+        ikwargs.setdefault('baudrate', device.baudrate)
         itype = ikwargs.pop("type", "tcp")
         if itype == "tcp":
             iklass = TCPServer
         elif itype == "serial":
             iklass = SerialServer
-        ikwargs["device"] = device
-        transports.append(iklass(**ikwargs))
+        transports.append(iklass(device.name, device.get_protocol, **ikwargs))
     device.transports = transports
     return device, transports
 
