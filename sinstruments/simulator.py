@@ -98,7 +98,7 @@ class LineProtocol(MessageProtocol):
         transport = self.transport
         nl = self.newline
         if nl == b'\n':
-            for line in self.channel:
+            for line in transport.ireadlines(self.channel):
                 yield line
         else:
             # warning: in this mode read will block even if client
@@ -157,6 +157,11 @@ class SimulatorServerMixin(object):
         data = channel.readline()
         delay(len(data), baudrate=self.baudrate)
         return data
+
+    def ireadlines(self, channel):
+        for line in channel:
+            delay(len(line), baudrate=self.baudrate)
+            yield line
 
 
 class SerialServer(SimulatorServerMixin):
