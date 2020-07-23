@@ -144,7 +144,7 @@ class SimulatorServerMixin(object):
         raise NotImplementedError
 
     def read(self, channel, size=-1):
-        data = channel.read(size=size)
+        data = channel.read(size)
         delay(len(data), baudrate=self.baudrate)
         return data
 
