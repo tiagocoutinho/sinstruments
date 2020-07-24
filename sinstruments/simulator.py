@@ -275,7 +275,7 @@ class UDPServer(DatagramServer, SimulatorServerMixin):
         try:
             handler.handle_message(data)
         except Exception as err:
-            self._log.info('error handling requests: %r', err)
+            self._log.info('error handling requests: %r', err, exc_info=1)
 
     def broadcast(self, msg):
         pass
