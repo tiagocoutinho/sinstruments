@@ -52,6 +52,34 @@ def Long(v):
     return _Type(v, "<q")
 
 
+def Float(v):
+    return _Type(v, "<f")
+
+
+def IntArrayNMod(v):
+    def get(ctx):
+        n = ctx['nmodules'].value()
+        return struct.pack(f"<{n}i", *v[:n])
+    def value():
+        return v
+    def set(ctx, new_v):
+        nonlocal v
+        v = [int(i) for i in new_v]
+    return Type(get, set, value)
+
+
+def FloatArrayNMod(v):
+    def get(ctx):
+        n = ctx['nmodules'].value()
+        return struct.pack(f"<{n}f", *v[:n])
+    def value():
+        return v
+    def set(ctx, new_v):
+        nonlocal v
+        v = [float(i) for i in new_v]
+    return Type(get, set, value)
+
+
 DEFAULTS = {
     "nmodules": Int(4),
     "nmaxmodules": Int(4),
@@ -65,7 +93,16 @@ DEFAULTS = {
     "conttrigen": Int(0),
     "gateen": Int(0),
     "delafter": Int(0),
-    "trigen": Int(0)
+    "trigen": Int(0),
+    "inpol": Int(0),   # 0 - rising edge, 1 - falling edge (removed in v4.0)
+    "outpol": Int(0),  # 0 - rising edge, 1 - falling edge (removed in v4.0)
+    "badchannelinterpolation": Int(0),
+    "flatfieldcorrection": Int(0),
+    "ratecorrection": Int(0),
+    "settings": IntArrayNMod([0, 0, 0, 0]),   # 0: Standard, 1: Highgain, 2: Fast, 3: Unknown (deprecated since v4.0)
+    "settingsmode": b"auto 5600 11200",
+    "tau": FloatArrayNMod([4.6, 8.7, 7.4, 2.1]),
+    "kthresh": FloatArrayNMod([8.05, 8.05, 8.05, 8.05]),
 }
 
 
@@ -121,7 +158,7 @@ class Mythen2(BaseDevice):
         acq = self.acq.acquisition if self.acq else None
         running = 0b0 if acq is None or acq.finished else 0b1
         readout = 0b0 if acq is None or acq.buffer.empty() else 1 << 16
-        return running & readout
+        return struct.pack("<i", running & readout)
 
     def handle_message(self, message):
         self._log.info("handling: %r", message)
@@ -130,7 +167,8 @@ class Mythen2(BaseDevice):
         return result
 
     def __getitem__(self, name):
-        return self.config[name].get(self.config)
+        param = self.config[name]
+        return param.get(self.config) if isinstance(param, Type) else param
 
     def __setitem__(self, name, value):
         self.config[name].set(self.config, value)
