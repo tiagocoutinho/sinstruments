@@ -281,7 +281,9 @@ class UDPServer(DatagramServer, SimulatorServerMixin):
         pass
 
     def send(self, channel, data):
-        self.sendto(data, channel)
+        sent, total = 0, len(data)
+        while sent < total:
+            sent += self.socket.sendto(data[sent:], channel)
 
 
 class BaseDevice(object):
