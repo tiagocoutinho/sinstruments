@@ -21,7 +21,7 @@ import logging
 import weakref
 
 import gevent
-from gevent.server import StreamServer
+from gevent.server import StreamServer, DatagramServer
 from gevent.fileobject import FileObject
 
 
@@ -118,7 +118,7 @@ class LineProtocol(MessageProtocol):
 
 class SimulatorServerMixin(object):
     """
-    Mixin class for TCP/Serial servers to handle message based commands.
+    Mixin class for TCP/UDP/Serial servers to handle message based commands.
     Internal usage only
     """
 
@@ -256,6 +256,32 @@ class TCPServer(StreamServer, SimulatorServerMixin):
 
     def send(self, channel, data):
         channel.write(data)
+
+
+class UDPServer(DatagramServer, SimulatorServerMixin):
+    """
+    UDP emulation server
+    """
+
+    def __init__(self, name, handler, **kwargs):
+        listener = kwargs.pop("url")
+        if isinstance(listener, list):
+            listener = tuple(listener)
+        DatagramServer.__init__(self, listener)
+        SimulatorServerMixin.__init__(self, name, handler, **kwargs)
+
+    def handle(self, data, addr):
+        handler = self.handler(addr, self)
+        try:
+            handler.handle_message(data)
+        except Exception as err:
+            self._log.info('error handling requests: %r', err)
+
+    def broadcast(self, msg):
+        pass
+
+    def send(self, channel, data):
+        self.sendto(data, channel)
 
 
 class BaseDevice(object):
@@ -407,6 +433,8 @@ def create_device(device_info):
         itype = ikwargs.pop("type", "tcp")
         if itype == "tcp":
             iklass = TCPServer
+        elif itype == "udp":
+            iklass = UDPServer
         elif itype == "serial":
             iklass = SerialServer
         transports.append(iklass(device.name, device.get_protocol, **ikwargs))
