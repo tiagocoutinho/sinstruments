@@ -74,18 +74,22 @@ Type = collections.namedtuple("Type", "name encode decode default")
 def _Type(name, decoder=int, type="i", default=None):
     def encode(ctx):
         return struct.pack("<{}".format(type), ctx[name])
+
     def decode(ctx, value):
         ctx[name] = value = decoder(value)
         return value
+
     return Type(name, encode, decode, default)
 
 
 def Str(name, default=None):
     def encode(ctx):
         return ctx[name].encode()
+
     def decode(ctx):
         ctx[name] = value = value.decode()
         return value
+
     return Type(name, encode, decode, default)
 
 
@@ -105,8 +109,10 @@ def _TypeArrayNMod(name, decoder=int, type="i", default=None):
     def encode(ctx):
         n, v = ctx["nmodules"], ctx[name]
         return struct.pack("<{}{}".format(n, type), *v[:n])
+
     def decode(ctx, value):
         v = [decoder(i) for i in value]
+
     return Type(name, encode, decode, default)
 
 
@@ -123,8 +129,10 @@ def _TypeArrayNChan(name, decoder=int, type="i", default=None):
         nb_mod, nb_ch, v = ctx["nmodules"], ctx["modchannels"], ctx[name]
         n = nb_mod * nb_ch
         return struct.pack("<{}{}".format(n, type), *v[:n])
+
     def decode(ctx, value):
         v = [decoder(i) for i in value]
+
     return Type(name, encode, decode, default)
 
 
@@ -133,8 +141,8 @@ def IntArrayNChan(name, default=None):
 
 
 TYPES = (
-    Str("assemblydate", "2020-07-28" + 40*"\x00"),
-    IntArrayNChan("badchannels", 4*1280*[0]),
+    Str("assemblydate", "2020-07-28" + 40 * "\x00"),
+    IntArrayNChan("badchannels", 4 * 1280 * [0]),
     Int("commandid", 0),
     Int("commandsetid", 0),
     Float("dcstemperature", 307.896),
@@ -143,7 +151,7 @@ TYPES = (
     FloatArrayNMod("humidity", [13.4, 12.1, 17.9, 11.8]),
     IntArrayNMod("hv", [124, 122, 178, 124]),
     Int("modchannels", 1280),
-    Str("modfwversion", 4*"01.03.07" + "\x00"),
+    Str("modfwversion", 4 * "01.03.07" + "\x00"),
     IntArrayNMod("modnum", [48867, 48868, 48869, 48870]),
     Int("module", 65535),
     Int("nmaxmodules", 4),
@@ -164,30 +172,31 @@ TYPES = (
     Int("delbef", 0),
     Int("delafter", 0),
     Int("trigen", 0),
-    Int("inpol", 0),   # 0 - rising edge, 1 - falling edge (removed in v4.0)
+    Int("inpol", 0),  # 0 - rising edge, 1 - falling edge (removed in v4.0)
     Int("outpol", 0),  # 0 - rising edge, 1 - falling edge (removed in v4.0)
     Int("badchannelinterpolation", 0),
     Int("flatfieldcorrection", 0),
     Int("ratecorrection", 0),
-    IntArrayNMod("settings", 4*[0]),   # 0: Standard, 1: Highgain, 2: Fast, 3: Unknown (deprecated since v4.0)
+    IntArrayNMod(
+        "settings", 4 * [0]
+    ),  # 0: Standard, 1: Highgain, 2: Fast, 3: Unknown (deprecated since v4.0)
     Str("settingsmode", "auto 5600 11200"),
     FloatArrayNMod("tau", [4.6, 8.7, 7.4, 2.1]),
-    FloatArrayNMod("kthresh", 4*[6.4]),
-    FloatArrayNMod("kthreshmin", 4*[0.05]),
-    FloatArrayNMod("kthreshmax", 4*[69.56]),
-    FloatArrayNMod("energy", 4*[8.05]),
-    FloatArrayNMod("energymin", 4*[0.05]),
-    FloatArrayNMod("energymax", 4*[69.56]),
+    FloatArrayNMod("kthresh", 4 * [6.4]),
+    FloatArrayNMod("kthreshmin", 4 * [0.05]),
+    FloatArrayNMod("kthreshmax", 4 * [69.56]),
+    FloatArrayNMod("energy", 4 * [8.05]),
+    FloatArrayNMod("energymin", 4 * [0.05]),
+    FloatArrayNMod("energymax", 4 * [69.56]),
 )
 
 TYPE_MAP = {t.name: t for t in TYPES}
 
 
-OK = 4*b"\x00"
+OK = 4 * b"\x00"
 
 
 class Protocol(MessageProtocol):
-
     def read_messages(self):
         transport = self.transport
         while True:
@@ -198,8 +207,9 @@ class Protocol(MessageProtocol):
 
 
 class BaseAcquisition:
-
-    def __init__(self, nb_frames, exposure_time, nb_channels, delay_before, delay_after):
+    def __init__(
+        self, nb_frames, exposure_time, nb_channels, delay_before, delay_after
+    ):
         self.nb_frames = nb_frames
         self.exposure_time = exposure_time
         self.nb_channels = nb_channels
@@ -208,7 +218,7 @@ class BaseAcquisition:
         self.finished = None
         self.exposing = False
         self.buffer = gevent.queue.Queue()
-        self._log = logging.getLogger('simulator.Mythen2')
+        self._log = logging.getLogger("simulator.Mythen2")
         self._trigger = gevent.event.Event()
 
     def trigger(self):
@@ -247,14 +257,12 @@ class BaseAcquisition:
 
 
 class InternalTriggerAcquisition(BaseAcquisition):
-
     def steps(self):
         for frame_nb in range(self.nb_frames):
             yield self.acquire(frame_nb)
 
 
 class TriggerStartAcquisition(BaseAcquisition):
-
     def steps(self):
         self._trigger.wait()
         for frame_nb in range(self.nb_frames):
@@ -262,7 +270,6 @@ class TriggerStartAcquisition(BaseAcquisition):
 
 
 class TriggerMultiAcquisition(BaseAcquisition):
-
     def steps(self):
         for frame_nb in range(self.nb_frames):
             self._trigger.wait()
@@ -274,8 +281,8 @@ class TriggerMultiAcquisition(BaseAcquisition):
 
 def start_acquisition(config, nb_frames=None):
     nb_frames = config["frames"] if nb_frames is None else nb_frames
-    exp_time = config["time"] * 1E-7
-    delay_before, delay_after = config["delbef"] * 1E-7, config["delafter"] * 1E-7
+    exp_time = config["time"] * 1e-7
+    delay_before, delay_after = config["delbef"] * 1e-7, config["delafter"] * 1e-7
     nb_channels = config["nmodules"] * config["modchannels"]
     trigger_enabled, continuous_trigger = config["trigen"], config["conttrigen"]
     if continuous_trigger:
@@ -301,18 +308,20 @@ class Mythen2(BaseDevice):
         self.config.update(self.props)
         if self.external_signal_address:
             self.external_signal_source = gevent.server.StreamServer(
-                self.external_signal_address,
-                self.on_external_signal)
+                self.external_signal_address, self.on_external_signal
+            )
             self.external_signal_source.start()
-            self._log.info("listenning for external signal plugs on %r",
-                           self.external_signal_address)
+            self._log.info(
+                "listenning for external signal plugs on %r",
+                self.external_signal_address,
+            )
 
         self._signal_handler = {
-            "trigger": lambda : self.acq.trigger(),
-            "high": lambda : self.acq.gate_up(),
-            "low": lambda : self.acq.gate_down()
+            "trigger": lambda: self.acq.trigger(),
+            "high": lambda: self.acq.gate_up(),
+            "low": lambda: self.acq.gate_down(),
         }
-        self.start_acquisition(0) # start dummy acquisition
+        self.start_acquisition(0)  # start dummy acquisition
 
     def __getitem__(self, name):
         return TYPE_MAP[name].encode(self.config)
@@ -348,8 +357,8 @@ class Mythen2(BaseDevice):
 
     def status(self):
         running = 0 if self.acq_task.ready() else 1
-        exposing = (1<<3 if self.acq.exposing else 0) if running else 0
-        readout = 1<<16 if self.acq.buffer.empty() else 0
+        exposing = (1 << 3 if self.acq.exposing else 0) if running else 0
+        readout = 1 << 16 if self.acq.buffer.empty() else 0
         return struct.pack("<i", running | exposing | readout)
 
     def handle_message(self, message):
