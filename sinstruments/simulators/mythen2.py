@@ -172,15 +172,15 @@ TYPES = (
     Int("delbef", 0),
     Int("delafter", 0),
     Int("trigen", 0),
+    Int("ratecorrection", 0),
+    Int("flatfieldcorrection", 0),
+    Int("badchannelinterpolation", 0),
     Int("inpol", 0),  # 0 - rising edge, 1 - falling edge (removed in v4.0)
     Int("outpol", 0),  # 0 - rising edge, 1 - falling edge (removed in v4.0)
-    Int("badchannelinterpolation", 0),
-    Int("flatfieldcorrection", 0),
-    Int("ratecorrection", 0),
     IntArrayNMod(
         "settings", 4 * [0]
-    ),  # 0: Standard, 1: Highgain, 2: Fast, 3: Unknown (deprecated since v4.0)
-    Str("settingsmode", "auto 5600 11200"),
+    ),  # 0: Standard, 1: Highgain, 2: Fast, 3: Unknown (deprecated since v3.0)
+    Str("settingsmode", "auto 5600 11200"),   # (deprecated since v3.0)
     FloatArrayNMod("tau", [4.6, 8.7, 7.4, 2.1]),
     FloatArrayNMod("kthresh", 4 * [6.4]),
     FloatArrayNMod("kthreshmin", 4 * [0.05]),
@@ -363,16 +363,16 @@ class Mythen2(BaseDevice):
 
     def handle_message(self, message):
         self._log.info("handling: %r", message)
-        reply = self._handle_message(message)
-        if reply is None:
-            self._log.info("return: None")
-        else:
-            size = len(reply)
-            if size > 40:
-                self._log.debug("return (%d) (too big, not shown)", len(reply))
+        for reply in self._handle_message(message):
+            if reply is None:
+                self._log.info("return: None")
             else:
-                self._log.info("return (%d): %r", len(reply), reply)
-        return reply
+                size = len(reply)
+                if size > 40:
+                    self._log.debug("return (%d) (too big, not shown)", len(reply))
+                else:
+                    self._log.info("return (%d): %r", len(reply), reply)
+            yield reply
 
     def _handle_message(self, message):
         message = message.strip().decode()
@@ -386,23 +386,23 @@ class Mythen2(BaseDevice):
             assert len(data) == 1
             data = data[0]
             if data == "status":
-                return self.status()
+                yield self.status()
             else:
-                return self[data]
+                yield self[data]
         elif cmd == "reset":
             gevent.sleep(2 + 0.5 * self.config["nmodules"])
-            return OK
+            yield OK
         elif cmd == "start":
             self.start_acquisition()
-            return OK
+            yield OK
         elif cmd == "stop":
             self.acq_task.kill()
-            return OK
+            yield OK
         elif cmd == "readout":
             nb_frames = int(data[0]) if data else 1
-            while nb_frames > 0:
-                return self.acq.buffer.get()
+            for _ in range(nb_frames):
+                yield self.acq.buffer.get()
         else:
             assert len(data) == 1
             self[cmd] = data[0]
-            return OK
+            yield OK
