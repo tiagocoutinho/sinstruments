@@ -17,6 +17,7 @@ from __future__ import print_function
 import os
 import pty
 import sys
+import inspect
 import logging
 import weakref
 
@@ -59,6 +60,7 @@ class BaseProtocol:
         self.device = device
         self.channel = channel
         self.transport = transport
+        self.is_generator = inspect.isgeneratorfunction(self.device.handle_message)
 
     def handle(self):
         raise NotImplementedError
@@ -80,9 +82,14 @@ class MessageProtocol(BaseProtocol):
         Returns:
             str: response to give to client or None if no response
         """
-        response = self.device.handle_message(message)
-        if response is not None:
-            self.transport.send(self.channel, response)
+        if self.is_generator:
+            for reply in self.device.handle_message(message):
+                if reply is not None:
+                    self.transport.send(self.channel, reply)
+        else:
+            reply = self.device.handle_message(message)
+            if reply is not None:
+                self.transport.send(self.channel, reply)
 
     def read_messages(self):
         raise NotImplementedError
