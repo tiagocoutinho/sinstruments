@@ -14,6 +14,7 @@ To start the server you can do something like::
 
 from __future__ import print_function
 
+import io
 import os
 import pty
 import sys
@@ -246,6 +247,12 @@ class TCPServer(StreamServer, SimulatorServerMixin):
         info = self._log.info
         info("new connection from %s", addr)
         channel = sock.makefile('rwb', 0)
+        # non buffered rwb are SocketIO objects (not instances of io.BufferedIOBase)
+        # so they don't have read1.
+        def read1(size=-1):
+            size = io.DEFAULT_BUFFER_SIZE if size == -1 else size
+            return channel.read(size)
+        channel.read1 = read1
         self.connections[addr] = sock
         try:
             SimulatorServerMixin.handle(self, channel)
