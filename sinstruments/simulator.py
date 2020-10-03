@@ -223,7 +223,7 @@ class SerialServer(SimulatorServerMixin):
         self.handle(self.fileobj)
 
     def broadcast(self, msg):
-        self.fileobj.write(msg)
+        self.send(self.fileobj, msg)
 
     def send(self, channel, data):
         delay(len(data), baudrate=self.baudrate)
