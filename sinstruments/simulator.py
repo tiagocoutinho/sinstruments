@@ -257,6 +257,7 @@ class TCPServer(StreamServer, SimulatorServerMixin):
         try:
             SimulatorServerMixin.handle(self, channel)
         finally:
+            del channel
             del self.connections[addr]
             sock.close()
         info("client disconnected %s", addr)
