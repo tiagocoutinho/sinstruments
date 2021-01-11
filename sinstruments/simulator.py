@@ -179,7 +179,7 @@ class SerialServer(SimulatorServerMixin):
     """
 
     def __init__(self, name, handler, **kwargs):
-        self.address = kwargs.pop("url")
+        self.address = kwargs.pop("url", '')
         self.set_listener(kwargs.pop('listener', None))
         SimulatorServerMixin.__init__(self, name, handler, **kwargs)
 
