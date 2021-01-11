@@ -398,6 +398,7 @@ class Server(object):
         self._log.info("Creating device %s (%r)", name, klass_name)
         device_info["server"] = self
         device, transports = create_device(device_info)
+        self.dev_transport[name] = (device, transports)
         self.devices[device] = transports
         return device, transports
 
