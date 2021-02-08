@@ -311,8 +311,9 @@ class BaseDevice(object):
     newline = b"\n"
     baudrate = None
 
-    def __init__(self, name, **kwargs):
+    def __init__(self, name, server=None, **kwargs):
         self.name = name
+        self.server = server
         self.newline = kwargs.pop('newline', self.newline)
         self._log = logging.getLogger("{0}.{1}".format(_log.name, name))
         self.__transports = weakref.WeakKeyDictionary()
@@ -395,6 +396,7 @@ class Server(object):
         klass_name = device_info.get("class")
         name = device_info.get("name", klass_name)
         self._log.info("Creating device %s (%r)", name, klass_name)
+        device_info["server"] = self
         device, transports = create_device(device_info)
         self.devices[device] = transports
         return device, transports
