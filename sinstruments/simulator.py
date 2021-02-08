@@ -394,29 +394,28 @@ class Server(object):
 
     def create_device(self, device_info):
         klass_name = device_info.get("class")
-        name = device_info.get("name", klass_name)
+        name = device_info["name"]
+        # name should be unique
+        assert name not in self.devices
         self._log.info("Creating device %s (%r)", name, klass_name)
         device_info["server"] = self
         device, transports = create_device(device_info)
-        self.dev_transport[name] = (device, transports)
-        self.devices[device] = transports
+        self.devices[name] = device
         return device, transports
 
     def get_device_by_name(self, name):
-        for device in self.devices:
-            if device.name == name:
-                return device
+        return self.devices[name]
 
     def start(self):
         tasks = []
-        for device in self.devices:
-            for interface in self.devices[device]:
-                tasks.append(gevent.spawn(interface.serve_forever))
+        for device in self.devices.values():
+            for transport in device.transports:
+                tasks.append(gevent.spawn(transport.serve_forever))
         return tasks
 
     def stop(self):
-        for device in self.devices:
-            for transport in self.devices[device]:
+        for device in self.devices.values():
+            for transport in device.transports:
                 transport.stop()
 
     def serve_forever(self):
@@ -435,7 +434,7 @@ def create_device(device_info):
     class_name = device_info.pop("class")
     module_name = device_info.pop("module", class_name.lower())
     package_name = device_info.pop("package", None)
-    name = device_info.pop("name", class_name)
+    name = device_info.pop("name")
 
     if package_name is None:
         package_name = "sinstruments.simulators." + module_name
