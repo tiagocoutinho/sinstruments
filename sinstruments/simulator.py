@@ -362,7 +362,7 @@ class Server(object):
     Handles a set of devices
     """
 
-    def __init__(self, devices=(), backdoor=None):
+    def __init__(self, devices=(), backdoor=None, registry=None):
         self._log = _log
         self._log.info("Bootstraping server")
         if backdoor:
@@ -381,6 +381,7 @@ class Server(object):
         else:
             self._log.info("no backdoor declared")
 
+        self.registry = {} if registry is None else registry
         self.devices = {}
         for device in devices:
             try:
@@ -399,7 +400,7 @@ class Server(object):
         assert name not in self.devices
         self._log.info("Creating device %s (%r)", name, klass_name)
         device_info["server"] = self
-        device, transports = create_device(device_info)
+        device, transports = create_device(device_info, self.registry)
         self.devices[name] = device
         return device, transports
 
@@ -429,19 +430,21 @@ class Server(object):
         return "{0}({1})".format(self.__class__.__name__, self.name)
 
 
-def create_device(device_info):
+def create_device(device_info, registry):
     device_info = dict(device_info)
     class_name = device_info.pop("class")
-    module_name = device_info.pop("module", class_name.lower())
+    module_name = device_info.pop("module", None)
     package_name = device_info.pop("package", None)
     name = device_info.pop("name")
 
-    if package_name is None:
-        package_name = "sinstruments.simulators." + module_name
-
-    __import__(package_name)
-    package = sys.modules[package_name]
-    klass = getattr(package, class_name)
+    if package_name is None and module_name is None:
+        klass = registry[class_name].load()
+    else:
+        if package_name is None:
+            package_name = "sinstruments.simulators." + module_name
+        __import__(package_name)
+        package = sys.modules[package_name]
+        klass = getattr(package, class_name)
     device = klass(name, **device_info)
 
     transports_info = device_info.pop("transports", ())
@@ -459,6 +462,18 @@ def create_device(device_info):
         transports.append(iklass(device.name, device.get_protocol, **ikwargs))
     device.transports = transports
     return device, transports
+
+
+def load_device_registry():
+    """
+    Return device classes for those devices which registered themselves with an
+    entry point.
+    """
+    import pkg_resources
+    return {
+        ep.name: ep
+        for ep in pkg_resources.iter_entry_points('sinstruments.device')
+    }
 
 
 def parse_config_file(file_name):
@@ -479,7 +494,8 @@ def parse_config_file(file_name):
 
 def create_server_from_config(config):
     backdoor, devices = config.get("backdoor", None), config.get("devices", ())
-    return Server(devices=devices, backdoor=backdoor)
+    registry = load_device_registry()
+    return Server(devices=devices, backdoor=backdoor, registry=registry)
 
 
 def main():
