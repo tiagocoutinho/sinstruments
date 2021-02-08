@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 #
-# This file is part of the instrument simulator project
+# This file is part of the sinstruments project
 #
-# Copyright (c) 2018 Tiago Coutinho
-# Distributed under the MIT. See LICENSE for more info.
+# Copyright (c) 2018-present Tiago Coutinho
+# Distributed under the GPLv3 license. See LICENSE for more info.
 
 """
 Elettra electometer simulator helper classes

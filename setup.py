@@ -1,5 +1,9 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+#
+# This file is part of the sinstruments project
+#
+# Copyright (c) 2018-present Tiago Coutinho
+# Distributed under the GPLv3 license. See LICENSE for more info.
 
 """The setup script."""
 
@@ -23,7 +27,7 @@ setup(
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
         'Intended Audience :: Developers',
-        'License :: OSI Approved :: MIT License',
+        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
@@ -34,7 +38,6 @@ setup(
     ],
     description="A simulator for real hardware which is accessible via TCP, UDP or serial line",
     install_requires=requirements,
-    license="MIT license",
     long_description=readme + '\n\n' + history,
     include_package_data=True,
     keywords='sinstruments',
