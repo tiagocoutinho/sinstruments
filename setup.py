@@ -46,7 +46,7 @@ setup(
     tests_require=test_requirements,
     python_requires=">=3.5",
     url='https://github.com/tiagocoutinho/sinstruments',
-    version='1.1.0',
+    version='1.2.0',
     zip_safe=False,
         entry_points={
         'console_scripts': [
