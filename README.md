@@ -411,8 +411,89 @@ class Oscilloscope(BaseDevice):
 
 ## Pytest fixture
 
-`TODO`
+If you are developing a python library that provides access to an instrument
+accessible through socket or serial line and you wrote a simulator for it, you
+might be interested in testing your library against the simulator.
 
+sinstruments provides a pair of pytest helpers that spawn a simulator in a
+separate thread.
+
+### `server_context`
+The first usage is simply using the `server_context` helper.
+There is actually nothing pytest speficic about this helper so you could
+imagine using it in other scenarios as well.
+
+Here is an example:
+
+```python
+import pytest
+
+from sinstruments.pytest import server_context
+
+cfg = {
+    "devices": [{
+        "name": "oscillo-1",
+        "class": "Oscilloscope",
+        "transports": [
+            {"type": "tcp", "url": "localhost:0"}
+        ]
+    }]
+}
+
+def test_oscilloscope_id():
+    with server_context(cfg) as server:
+        # put here code to perform your tests that need to communicate with
+        # the simulator. In this example an oscilloscope client
+        addr = server.devices["oscillo-1"].transports[0].address
+        oscillo = Oscilloscope(addr)
+        assert oscillo.idn().startswith("ACME Inc,O-3000")
+```
+
+You might notice that in the configuration we use port `0`. This is telling
+the simulator to listen on any free port provided by the OS.
+
+The actual test retrieves the current address assigned by the OS and uses it in
+the test.
+
+As you can see, the tests are not dependent of the availability of one specific
+port which makes them portable.
+
+Here is a suggestion on how you could write your own fixture using the
+`server_context` helper. The aim was to reduce the amount of boilerplate
+code you need to write your test:
+
+```python
+@pytest.fixture
+def oscillo_server():
+    with server_context(config) as server:
+        server.oscillo1 = server.devices["oscillo-1"]
+        server.oscillo1.addr = server.oscillo1.transports[0].address
+        yield server
+
+
+def test_oscilloscope_current(oscillo_server):
+    oscillo = Oscilloscope(oscillo_server.oscillo1.addr)
+    assert .05 < oscillo.current() < 0.01
+```
+
+### `server`
+
+A second helper is the `server` fixture. This fixture depends on an existing
+`config` feature that must be present in your module. Here is an example
+following the previous code:
+
+```python
+from sinstruments.pytest import server
+
+@pytest.fixture
+def config()
+    yield cfg
+
+def test_oscilloscope_voltage(server):
+    addr = server.devices["oscillo-1"].transports[0].address
+    oscillo = Oscilloscope(addr)
+    assert 5 < oscillo.voltage() < 10
+```
 
 [pypi-python-versions]: https://img.shields.io/pypi/pyversions/sinstruments.svg
 [pypi-version]: https://img.shields.io/pypi/v/sinstruments.svg
