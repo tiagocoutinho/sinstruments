@@ -6,11 +6,10 @@
 ![License][license]
 
 A simulator for real hardware. This project provides a server able to spawn
-multiple simulated devices and serve requests concurrently
+multiple simulated devices and serve requests concurrently.
 
 This project provides only the required infrastructure to launch a server from
-a configuration file (YAML, TOML or json) and a means to register third-party device plugins through
-the python entry point mechanism.
+a configuration file (YAML, TOML or json) and a means to register third-party device plugins through the python entry point mechanism.
 
 So far, the project provides transports for TCP, UDP and serial line.
 Support for new transports (ex: USB, GPIB or SPI) is being implemented on a
@@ -20,7 +19,7 @@ PRs are welcome!
 
 ## Installation
 
-(**TL;DR**: `pip install sinstruments pyyaml toml`)
+(**TL;DR**: `pip install sinstruments[all]`)
 
 From within your favorite python environment:
 
@@ -31,13 +30,13 @@ $ pip install sinstruments
 Additionally, if you want to write YAML configuration files in YAML:
 
 ```
-$ pip install pyyaml
+$ pip install sinstruments[yaml]
 ```
 
 ...or, for TOML based configuration:
 
 ```
-$ pip install toml
+$ pip install sinstruments[toml]
 ```
 
 ## Execution

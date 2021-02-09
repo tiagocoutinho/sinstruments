@@ -12,7 +12,14 @@ from setuptools import setup, find_packages
 with open('README.md') as readme_file:
     readme = readme_file.read()
 
-requirements = [ 'gevent', 'PyYAML', 'enum34; python_version < "3.4"' ]
+requirements = ['gevent']
+
+extras = {
+    'yaml': ['PyYAML'],
+    'toml': ['toml'],
+}
+
+extras["all"] = list(set.union(*(set(i) for i in extras.values())))
 
 setup_requirements = ['pytest-runner', ]
 
@@ -22,7 +29,7 @@ setup(
     author="Tiago Coutinho",
     author_email='coutinhotiago@gmail.com',
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Natural Language :: English',
@@ -44,6 +51,7 @@ setup(
     setup_requires=setup_requirements,
     test_suite='tests',
     tests_require=test_requirements,
+    extras_require=extras,
     python_requires=">=3.5",
     url='https://github.com/tiagocoutinho/sinstruments',
     version='1.2.0',
