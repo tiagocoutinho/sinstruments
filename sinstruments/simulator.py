@@ -316,22 +316,11 @@ class BaseDevice(object):
         self.server = server
         self.newline = kwargs.pop('newline', self.newline)
         self._log = logging.getLogger("{0}.{1}".format(_log.name, name))
-        self.__transports = weakref.WeakKeyDictionary()
+        self.transports = []
         self.props = kwargs
 
     def get_protocol(self, channel, transport):
         return self.protocol(self, channel, transport)
-
-    @property
-    def transports(self):
-        """the list of registered transports"""
-        return self.__transports.keys()
-
-    @transports.setter
-    def transports(self, transports):
-        self.__transports.clear()
-        for transport in transports:
-            self.__transports[transport] = None
 
     def on_connection(self, transport, conn):
         pass
@@ -400,9 +389,9 @@ class Server(object):
         assert name not in self.devices
         self._log.info("Creating device %s (%r)", name, klass_name)
         device_info["server"] = self
-        device, transports = create_device(device_info, self.registry)
+        device = create_device(device_info, self.registry)
         self.devices[name] = device
-        return device, transports
+        return device
 
     def get_device_by_name(self, name):
         return self.devices[name]
@@ -461,7 +450,7 @@ def create_device(device_info, registry):
             iklass = SerialServer
         transports.append(iklass(device.name, device.get_protocol, **ikwargs))
     device.transports = transports
-    return device, transports
+    return device
 
 
 def load_device_registry():
@@ -519,7 +508,6 @@ def main():
     logging.basicConfig(format=fmt, level=level)
     config = parse_config_file(args.config_file)
     server = create_server_from_config(config)
-
     try:
         server.serve_forever()
     except KeyboardInterrupt:
