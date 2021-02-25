@@ -117,6 +117,9 @@ provide their own simulators.
 If you wrote a publicly available device feel free complete the above list by
 creating a PR.
 
+*Hint*: `sinstruments-server ls` shows a list of available plugins.
+
+
 ## Configuration
 
 The configuration file can be a YAML, TOML or JSON file as long as it translates to a dictionary with the description given below.
