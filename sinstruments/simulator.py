@@ -22,6 +22,7 @@ import inspect
 import logging
 import weakref
 
+import click
 import gevent
 from gevent.server import StreamServer, DatagramServer
 from gevent.fileobject import FileObject
@@ -487,36 +488,46 @@ def create_server_from_config(config):
     return Server(devices=devices, backdoor=backdoor, registry=registry)
 
 
-def main():
-    import argparse
-
-    parser = argparse.ArgumentParser(description=__doc__.split("\n")[1])
-    parser.add_argument(
-        "--log-level",
-        default="WARNING",
-        help="log level",
-        choices=["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"],
-    )
-    parser.add_argument(
-        "-c", "--config-file", default='./sinstruments.yml',
-        help="configuration file",
-    )
-    args = parser.parse_args()
-
+@click.group(invoke_without_command=True, help=__doc__.split("\n")[1])
+@click.pass_context
+@click.option(
+    "--log-level",
+    type=click.Choice(["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"], case_sensitive=False),
+    default="WARNING",
+    help="log level (case insensitive)",
+    show_default=True,
+)
+@click.option(
+    "-c", "--config-file",
+    type=click.Path(),
+    help="configuration file",
+    default="./sinstruments.yml"
+)
+def cli(ctx, log_level, config_file):
     fmt = "%(asctime)-15s %(levelname)-5s %(name)s: %(message)s"
-    level = getattr(logging, args.log_level.upper())
-    logging.basicConfig(format=fmt, level=level)
-    config = parse_config_file(args.config_file)
-    server = create_server_from_config(config)
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("\nCtrl-C Pressed. Bailing out...")
+    logging.basicConfig(format=fmt, level=log_level)
+
+    if ctx.invoked_subcommand is None:
+        config = parse_config_file(config_file)
+        server = create_server_from_config(config)
         try:
-            server.stop()
-        except Exception:
-            logging.exception("Error while stopping.")
-            return 1
+            server.serve_forever()
+        except KeyboardInterrupt:
+            print("\nCtrl-C Pressed. Bailing out...")
+            try:
+                server.stop()
+            except Exception:
+                logging.exception("Error while stopping.")
+                return 1
+
+
+@cli.command("ls", help="Lists available sinstruments plugins")
+def ls():
+    for name, plugin in load_device_registry().items():
+        print(plugin.dist)
+
+
+main = cli
 
 
 if __name__ == "__main__":

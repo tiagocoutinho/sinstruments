@@ -23,7 +23,7 @@ extras["all"] = list(set.union(*(set(i) for i in extras.values())))
 
 setup_requirements = ['pytest-runner', ]
 
-test_requirements = ['pytest', ]
+test_requirements = ['pytest', 'click>=7.1']
 
 setup(
     author="Tiago Coutinho",
