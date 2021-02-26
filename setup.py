@@ -12,7 +12,7 @@ from setuptools import setup, find_packages
 with open('README.md') as readme_file:
     readme = readme_file.read()
 
-requirements = ['gevent']
+requirements = ['gevent', 'click>=7.1']
 
 extras = {
     'yaml': ['PyYAML'],
@@ -21,9 +21,9 @@ extras = {
 
 extras["all"] = list(set.union(*(set(i) for i in extras.values())))
 
-setup_requirements = ['pytest-runner', ]
+setup_requirements = ['pytest-runner']
 
-test_requirements = ['pytest', 'click>=7.1']
+test_requirements = ['pytest']
 
 setup(
     author="Tiago Coutinho",
