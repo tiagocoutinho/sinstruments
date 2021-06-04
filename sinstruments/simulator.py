@@ -524,7 +524,7 @@ def cli(ctx, log_level, config_file):
 @cli.command("ls", help="Lists available sinstruments plugins")
 def ls():
     for name, plugin in load_device_registry().items():
-        print(plugin.dist)
+        print("{} from {}".format(name, plugin.dist))
 
 
 main = cli
