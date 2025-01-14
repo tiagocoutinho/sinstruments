@@ -20,6 +20,7 @@ import pty
 import sys
 import inspect
 import logging
+import termios
 import weakref
 
 import click
@@ -181,6 +182,7 @@ class SerialServer(SimulatorServerMixin):
 
     def __init__(self, name, handler, **kwargs):
         self.address = kwargs.pop("url", '')
+        self.baudrate = kwargs.get('baudrate', None)
         self.set_listener(kwargs.pop('listener', None))
         SimulatorServerMixin.__init__(self, name, handler, **kwargs)
 
@@ -203,6 +205,11 @@ class SerialServer(SimulatorServerMixin):
         else:
             self.master, self.slave = listener
 
+        if self.baudrate is not None:
+            baudrate = getattr(termios, f"B{self.baudrate}")
+            attr = termios.tcgetattr(self.slave)
+            attr[4] = attr[5] = baudrate
+            termios.tcsetattr(self.slave, termios.TCSANOW, attr)
         self.original_address = os.ttyname(self.slave)
         self.fileobj = FileObject(self.master, mode='rb')
 
@@ -227,7 +234,6 @@ class SerialServer(SimulatorServerMixin):
         self.send(self.fileobj, msg)
 
     def send(self, channel, data):
-        delay(len(data), baudrate=self.baudrate)
         os.write(channel.fileno(), data)
 
 
