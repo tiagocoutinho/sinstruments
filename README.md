@@ -113,9 +113,10 @@ provide their own simulators.
 * [vacuubrand](https://github.com/tiagocoutinho/vacuubrand)
 * [xia-pfcu](https://github.com/tiagocoutinho/xia-pfcu)
 * Mythen detector (from Dectris) - not publicly available yet
-* [MKS 937](https://gitlab.com/tiagocoutinho/vazio)
-* [Agilent 4UHV](https://gitlab.com/tiagocoutinho/vazio)
-* [Varian Dual](https://gitlab.com/tiagocoutinho/vazio)
+* [vazio](https://gitlab.com/tiagocoutinho/vazio)
+    * MKS 937
+    * Agilent 4UHV
+    * Varian Dual
 
 If you wrote a publicly available device feel free complete the above list by
 creating a PR.
