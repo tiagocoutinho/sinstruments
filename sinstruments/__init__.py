@@ -8,4 +8,4 @@
 
 __author__ = "Tiago Coutinho"
 __email__ = "coutinhotiago@gmail.com"
-__version__ = "1.4.0"
+__version__ = "1.5.0"
