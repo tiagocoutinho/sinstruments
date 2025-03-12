@@ -1,0 +1,51 @@
+
+[project]
+name = "sinstruments"
+version = "1.4.0"
+description = "A simulator for real hardware which is accessible via TCP, UDP or serial line"
+keywords = ["sinstruments"]
+readme = "README.md"
+authors = [
+    {name = "Tiago Coutinho", email = "coutinhotiago@gmail.com"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+requires-python = ">=3.5"
+dependencies = [
+    "click>=7.1",
+    "gevent",
+]
+
+[project.urls]
+Homepage = "https://github.com/tiagocoutinho/sinstruments"
+
+[project.optional-dependencies]
+yaml = [
+    "PyYAML",
+]
+toml = [
+    "toml",
+]
+all = [
+    "PyYAML",
+    "toml",
+]
+
+[project.scripts]
+sinstruments-server = "sinstruments.simulator:main"
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"

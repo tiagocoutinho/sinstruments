@@ -6,8 +6,7 @@
 import pytest
 
 
-from sinstruments import sinstruments
-
+import sinstruments
 
 @pytest.fixture
 def response():
