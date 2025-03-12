@@ -116,14 +116,10 @@ class ElettraElectrometer(BaseDevice):
                 minim = allowed.get("min", float("-inf"))
                 maxim = allowed.get("max", float("inf"))
                 if rvalue < minim or rvalue > maxim:
-                    raise ValueError(
-                        "set {0!r} to {1} outside allowed range".format(cmd, value)
-                    )
+                    raise ValueError("set {0!r} to {1} outside allowed range".format(cmd, value))
             elif isinstance(allowed, (tuple, list, dict, set)):
                 if rvalue not in allowed:
-                    raise ValueError(
-                        "set {0!r} not in allowed values".format(cmd)
-                    )
+                    raise ValueError("set {0!r} not in allowed values".format(cmd))
         return rvalue
 
     def __getitem__(self, cmd):
@@ -204,7 +200,7 @@ class ElettraElectrometer(BaseDevice):
     def _generate(self):
         nb_channels = self.commands.get("chn", 4)
         res = self.commands.get("res", 24)
-        return [random.randrange(0, 2 ** res) for _ in range(nb_channels)]
+        return [random.randrange(0, 2**res) for _ in range(nb_channels)]
 
     def get(self):
         values = self._generate()
@@ -219,7 +215,6 @@ class ElettraElectrometer(BaseDevice):
 
 
 class AH401D(ElettraElectrometer):
-
     COMMANDS = dict(
         ElettraElectrometer.COMMANDS,
         hlf=BCmdRW(False),
@@ -235,7 +230,6 @@ class AH401D(ElettraElectrometer):
 
 
 class AH501D(ElettraElectrometer):
-
     # special messages are sent without '\r'
     # TODO: NOT HANDLED BY SIMULATOR ANYMORE: NEED TO IMPLEMENT A SPECIFIC PROTOCOL
     special_messages = set(["S"])  # stop continuous acquisition

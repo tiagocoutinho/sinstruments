@@ -1,0 +1,80 @@
+
+[project]
+name = "sinstruments"
+description = "A simulator for real hardware which is accessible via TCP, UDP or serial line"
+keywords = ["sinstruments"]
+authors = [
+    {name = "Tiago Coutinho", email = "coutinhotiago@gmail.com"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+requires-python = ">=3.7"
+dependencies = [
+    "click>=7.1",
+    "gevent",
+]
+dynamic = ["version", "readme"]
+
+[project.urls]
+Homepage = "https://github.com/tiagocoutinho/sinstruments"
+
+[project.optional-dependencies]
+yaml = [
+    "PyYAML",
+]
+toml = [
+    "toml",
+]
+all = [
+    "PyYAML",
+    "toml",
+]
+
+[project.scripts]
+sinstruments-server = "sinstruments.simulator:main"
+
+[build-system]
+requires = ["setuptools >= 40.9.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = {attr = "sinstruments.__version__"}
+readme = {file = ["README.md"], content-type = "text/markdown"}
+
+[tool.setuptools.packages.find]
+include = ["sinstruments*"]
+
+[tool.ruff]
+lint.select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "C",  # flake8-comprehensions
+    "B",  # flake8-bugbear
+    "UP",  # pyupgrade
+]
+lint.ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+    "W191", # indentation contains tabs
+]
+line-length = 120
+indent-width = 4
+target-version = "py39"
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
