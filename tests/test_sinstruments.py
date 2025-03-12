@@ -8,6 +8,7 @@ import pytest
 
 import sinstruments
 
+
 @pytest.fixture
 def response():
     """Sample pytest fixture.

@@ -7,6 +7,6 @@
 
 """Top-level package for Instrument Simulator."""
 
-__author__ = """Tiago Coutinho"""
-__email__ = 'coutinhotiago@gmail.com'
-__version__ = '1.4.0'
+__author__ = "Tiago Coutinho"
+__email__ = "coutinhotiago@gmail.com"
+__version__ = "1.4.0"

@@ -7,4 +7,5 @@
 
 if __name__ == "__main__":
     from .simulator import main
+
     main()

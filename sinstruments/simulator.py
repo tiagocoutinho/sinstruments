@@ -58,7 +58,6 @@ def delay(nb_bytes, baudrate=None):
 
 
 class BaseProtocol:
-
     def __init__(self, device, channel, transport):
         self.device = device
         self.channel = channel
@@ -70,7 +69,6 @@ class BaseProtocol:
 
 
 class MessageProtocol(BaseProtocol):
-
     def handle(self):
         for message in self.read_messages():
             self.handle_message(message)
@@ -99,7 +97,6 @@ class MessageProtocol(BaseProtocol):
 
 
 class LineProtocol(MessageProtocol):
-
     @property
     def newline(self):
         return self.device.newline
@@ -107,13 +104,13 @@ class LineProtocol(MessageProtocol):
     def read_messages(self):
         transport = self.transport
         nl = self.newline
-        if nl == b'\n':
+        if nl == b"\n":
             for line in transport.ireadlines(self.channel):
                 yield line
         else:
             # warning: in this mode read will block even if client
             # disconnects. Need to find a better way to handle this
-            buff = b''
+            buff = b""
             while True:
                 readout = transport.read1(self.channel)
                 if not readout:
@@ -134,7 +131,7 @@ class SimulatorServerMixin(object):
 
     def __init__(self, name, handler, **kwargs):
         name = "{}[{}]".format(name, self.address)
-        self.baudrate = kwargs.get('baudrate', None)
+        self.baudrate = kwargs.get("baudrate", None)
         self._log = logging.getLogger("{0}.{1}".format(_log.name, name))
         self._log.info("listening on %s (baud=%s)", self.address, self.baudrate)
         self.handler = handler
@@ -145,7 +142,7 @@ class SimulatorServerMixin(object):
         try:
             handler.handle()
         except Exception as err:
-            self._log.info('error handling requests: %r', err)
+            self._log.info("error handling requests: %r", err)
 
     def broadcast(self, msg):
         raise NotImplementedError
@@ -181,9 +178,9 @@ class SerialServer(SimulatorServerMixin):
     """
 
     def __init__(self, name, handler, **kwargs):
-        self.address = kwargs.pop("url", '')
-        self.baudrate = kwargs.get('baudrate', None)
-        self.set_listener(kwargs.pop('listener', None))
+        self.address = kwargs.pop("url", "")
+        self.baudrate = kwargs.get("baudrate", None)
+        self.set_listener(kwargs.pop("listener", None))
         SimulatorServerMixin.__init__(self, name, handler, **kwargs)
 
     def stop(self):
@@ -211,7 +208,7 @@ class SerialServer(SimulatorServerMixin):
             attr[4] = attr[5] = baudrate
             termios.tcsetattr(self.slave, termios.TCSANOW, attr)
         self.original_address = os.ttyname(self.slave)
-        self.fileobj = FileObject(self.master, mode='rb')
+        self.fileobj = FileObject(self.master, mode="rb")
 
         # Make a link to the randomly named pseudo-terminal with a known name.
         link_path, link_fname = os.path.split(self.address)
@@ -222,10 +219,7 @@ class SerialServer(SimulatorServerMixin):
         if not os.path.exists(link_path):
             os.makedirs(link_path)
         os.symlink(self.original_address, self.address)
-        _log.info(
-            'Created symbolic link "%s" to simulator pseudo terminal %r',
-            self.address, self.original_address
-        )
+        _log.info('Created symbolic link "%s" to simulator pseudo terminal %r', self.address, self.original_address)
 
     def serve_forever(self):
         self.handle(self.fileobj)
@@ -253,12 +247,14 @@ class TCPServer(StreamServer, SimulatorServerMixin):
     def handle(self, sock, addr):
         info = self._log.info
         info("new connection from %s", addr)
-        channel = sock.makefile('rwb', 0)
+        channel = sock.makefile("rwb", 0)
+
         # non buffered rwb are SocketIO objects (not instances of io.BufferedIOBase)
         # so they don't have read1.
         def read1(size=-1):
             size = io.DEFAULT_BUFFER_SIZE if size == -1 else size
             return channel.read(size)
+
         channel.read1 = read1
         self.connections[addr] = sock
         try:
@@ -297,7 +293,7 @@ class UDPServer(DatagramServer, SimulatorServerMixin):
         try:
             handler.handle_message(data)
         except Exception as err:
-            self._log.info('error handling requests: %r', err, exc_info=1)
+            self._log.info("error handling requests: %r", err, exc_info=1)
 
     def broadcast(self, msg):
         pass
@@ -321,7 +317,7 @@ class BaseDevice(object):
     def __init__(self, name, server=None, **kwargs):
         self.name = name
         self.server = server
-        self.newline = kwargs.pop('newline', self.newline)
+        self.newline = kwargs.pop("newline", self.newline)
         self._log = logging.getLogger("{0}.{1}".format(_log.name, name))
         self.transports = []
         self.props = kwargs
@@ -369,9 +365,7 @@ class Server(object):
                 "You can access me through the "
                 "'server()' function. Have fun!"
             )
-            self.backdoor = BackdoorServer(
-                backdoor, banner=banner, locals=dict(server=weakref.ref(self))
-            )
+            self.backdoor = BackdoorServer(backdoor, banner=banner, locals=dict(server=weakref.ref(self)))
             self.backdoor.start()
             self._log.info("Backdoor opened at %r", backdoor)
         else:
@@ -384,9 +378,7 @@ class Server(object):
                 self.create_device(device)
             except Exception as error:
                 dname = device.get("name", device.get("class", "unknown"))
-                self._log.error(
-                    "error creating device %s (will not be available): %s", dname, error
-                )
+                self._log.error("error creating device %s (will not be available): %s", dname, error)
                 self._log.debug("details: %s", error, exc_info=1)
 
     def create_device(self, device_info):
@@ -447,7 +439,7 @@ def create_device(device_info, registry):
     transports = []
     for interface_info in transports_info:
         ikwargs = dict(interface_info)
-        ikwargs.setdefault('baudrate', device.baudrate)
+        ikwargs.setdefault("baudrate", device.baudrate)
         itype = ikwargs.pop("type", "tcp")
         if itype == "tcp":
             iklass = TCPServer
@@ -466,25 +458,24 @@ def load_device_registry():
     entry point.
     """
     from importlib.metadata import entry_points
-    return {
-        ep.name: ep
-        for ep in entry_points().select(group='sinstruments.device')
-    }
+
+    return {ep.name: ep for ep in entry_points().select(group="sinstruments.device")}
 
 
 def parse_config_file(file_name):
     ext = os.path.splitext(file_name)[-1]
-    if ext.endswith('toml'):
+    if ext.endswith("toml"):
         from toml import load
-    elif ext.endswith('yml') or ext.endswith('.yaml'):
+    elif ext.endswith("yml") or ext.endswith(".yaml"):
         import yaml
+
         def load(fobj):
             return yaml.load(fobj, Loader=yaml.Loader)
-    elif ext.endswith('json'):
+    elif ext.endswith("json"):
         from json import load
     else:
         raise NotImplementedError
-    with open(file_name)as fobj:
+    with open(file_name) as fobj:
         return load(fobj)
 
 
@@ -503,12 +494,7 @@ def create_server_from_config(config):
     help="log level (case insensitive)",
     show_default=True,
 )
-@click.option(
-    "-c", "--config-file",
-    type=click.Path(),
-    help="configuration file",
-    default="./sinstruments.yml"
-)
+@click.option("-c", "--config-file", type=click.Path(), help="configuration file", default="./sinstruments.yml")
 def cli(ctx, log_level, config_file):
     fmt = "%(asctime)-15s %(levelname)-5s %(name)s: %(message)s"
     logging.basicConfig(format=fmt, level=log_level)

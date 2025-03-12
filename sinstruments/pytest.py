@@ -76,7 +76,6 @@ from .simulator import create_server_from_config
 
 
 class server_context:
-
     def __init__(self, config):
         self.config = config
         self.thread = None

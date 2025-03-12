@@ -1,10 +1,8 @@
 
 [project]
 name = "sinstruments"
-version = "1.4.0"
 description = "A simulator for real hardware which is accessible via TCP, UDP or serial line"
 keywords = ["sinstruments"]
-readme = "README.md"
 authors = [
     {name = "Tiago Coutinho", email = "coutinhotiago@gmail.com"},
 ]
@@ -22,11 +20,12 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
-requires-python = ">=3.5"
+requires-python = ">=3.7"
 dependencies = [
     "click>=7.1",
     "gevent",
 ]
+dynamic = ["version", "readme"]
 
 [project.urls]
 Homepage = "https://github.com/tiagocoutinho/sinstruments"
@@ -47,5 +46,35 @@ all = [
 sinstruments-server = "sinstruments.simulator:main"
 
 [build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
+requires = ["setuptools >= 40.9.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = {attr = "linuxpy.__version__"}
+readme = {file = ["README.md"], content-type = "text/markdown"}
+
+[tool.setuptools.packages.find]
+include = ["sinstruments*"]
+
+[tool.ruff]
+lint.select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "C",  # flake8-comprehensions
+    "B",  # flake8-bugbear
+    "UP",  # pyupgrade
+]
+lint.ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+    "W191", # indentation contains tabs
+]
+line-length = 120
+indent-width = 4
+target-version = "py39"
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
