@@ -465,10 +465,10 @@ def load_device_registry():
     Return device classes for those devices which registered themselves with an
     entry point.
     """
-    import pkg_resources
+    from importlib.metadata import entry_points
     return {
         ep.name: ep
-        for ep in pkg_resources.iter_entry_points('sinstruments.device')
+        for ep in entry_points().select(group='sinstruments.device')
     }
 
 
@@ -530,7 +530,7 @@ def cli(ctx, log_level, config_file):
 @cli.command("ls", help="Lists available sinstruments plugins")
 def ls():
     for name, plugin in load_device_registry().items():
-        print("{} from {}".format(name, plugin.dist))
+        print("{} from {} {}".format(name, plugin.dist.name, plugin.dist.version))
 
 
 main = cli
